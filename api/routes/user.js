@@ -4,29 +4,20 @@ const bcrypt = require("bcrypt");
 
 // update user
 router.put("/:id", async (req, res) => {
-    
-    if (req.body.userId === req.params.id || req.body.isAdmin) {
-        if (req.body.password) {
-            try {
-                const salt = await bcrypt.genSalt(10);
-                req.body.password = await bcrypt.hash(req.body.password, salt);
-            } catch (err) {
-                return res.status(500).json(err);
-            }
-        }
+    if (req.body.userId === req.params.id) {
         try {
-            const user = await User.findByIdAndUpdate(req.params.id, {
+            const updatedUser = await User.findByIdAndUpdate(req.params.id, {
                 $set: req.body,
-            });
+            }, { new: true }); 
             res.status(200).json("Account has been updated");
         } catch (err) {
-            return res.status(500).json(err);
+            res.status(500).json(err);
         }
-
     } else {
-        res.status(403).json("You can only update your account");
+        res.status(403).json("You can only update your own account");
     }
 });
+
 
 // delete user
 router.delete("/:id", async (req, res) => {
@@ -56,25 +47,37 @@ router.get("/", async (req, res) => {
     }
 });
 
-// Get friends
-router.get("/friends/:userId",async (req,res)=>{
+// get all users
+router.get("/all",async(req,res)=>{
     try{
-        const user= await User.findById(req.params.userId);
-        const friends=await Promise.all(
-            user.followings.map(friendId=>{
-                return User.findById(friendId);
-            })
-        )
-        let friendList=[];
-        friends.map((friend) => {
-        const { _id, username, profilePicture } = friend;
-        friendList.push({ _id, username, profilePicture });
-        });
-        res.status(200).json(friendList)
+        const userList=await User.find().select("-password");
+        res.status(200).json(userList);
     }catch(err){
         res.status(500).json(err);
     }
 })
+
+// Get friends
+router.get("/friends/:userId", async (req, res) => {
+    try {
+        const user = await User.findById(req.params.userId);
+        const friends = await Promise.all(
+            user.followings.map(friendId => {
+                return User.findById(friendId);
+            })
+        )
+        let friendList = [];
+        friends.map((friend) => {
+            const { _id, username, profilePicture } = friend;
+            friendList.push({ _id, username, profilePicture });
+        });
+        res.status(200).json(friendList)
+    } catch (err) {
+        res.status(500).json(err);
+    }
+})
+
+
 
 // follow a user
 router.put("/:id/follow", async (req, res) => {
